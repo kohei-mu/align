@@ -25,10 +25,8 @@ def levenshtein_distance(a,b):
 def output(a,b):
 	str1 = []
 	str2 = []
-	#import re
 	a = re.split(r'\s', a)
 	b = re.split(r'\s', b)
-	#print levenshtein_distance(a,b)
 	i = len(a)
 	j = len(b)
 	count_null=[]
