@@ -1,7 +1,13 @@
 #/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import re
+import re, argparse
+
+parser = argparse.ArgumentParser(description="help messages") 
+parser.add_argument("-correct", dest="corr", help="correct sentence")
+parser.add_argument("-incorrect", dest="incor", help="incorrect sentence")
+parser.add_argument("-alignOut", dest="align", help="output alignment")
+args = parser.parse_args()
 
 def levenshtein_distance(a,b):
 	m = [[0] * (len(b) + 1) for i in range(len(a) + 1)]
@@ -16,273 +22,141 @@ def levenshtein_distance(a,b):
 			else:
 				x = 1
 			m[i][j] = min(m[i-1][j] + 1, m[i][j-1] + 1, m[i-1][j-1] + x)
-			
-			#if i > 1 and j >1 and (a[i-1] == b[j-2]) and (a[i-2] == b[j-1]):
-			#	m[i][j] = min(m[i][j], m[i-2][j-2]+x)
 
 	return m
 
-def output(a,b):
-	str1 = []
-	str2 = []
-	a = re.split(r'\s', a)
-	b = re.split(r'\s', b)
-	i = len(a)
-	j = len(b)
-	count_null=[]
-	dp = levenshtein_distance(a,b)
-	if i == j:
-		count = max(i,j)
-		for m in xrange(1, max(i,j)+8):
-			#dp = levenshtein_distance(a,b)
-			num = min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])
-			if (i == 0) and (j == 0):break
-			if num == dp[i-1][j-1]:
-				str1.append(a[i-1]+" "+"({ "+str(count)+" })")
-				str2.append(b[j-1])
-				count -= 1
-				i -= 1
-				j -= 1
-			elif num == dp[i][j-1]:
-				str2.append(b[j-1])
-				j -= 1
-			elif num == dp[i-1][j]:
-				str1.append(a[i-1]+" "+"({ "+str(count)+" })")
-				count -= 1
-				i -= 1
+def alignment(correct, incorrect):
+    correct_al = []
+    incorrect_al = []
+    correct = re.split(r'\s', correct)
+    incorrect = re.split(r'\s', incorrect)
+    correct_len = len(correct)
+    incorrect_len = len(incorrect)
+    count_null = []
+    dp = levenshtein_distance(correct, incorrect)
+    if correct_len == incorrect_len:
+        count = max(correct_len, incorrect_len)
+        for m in xrange(1, max(correct_len, incorrect_len)+8):
+            num = min(dp[correct_len-1][incorrect_len], dp[correct_len][incorrect_len-1], dp[correct_len-1][incorrect_len-1])
+            if correct_len == 0 and incorrect_len == 0:break
+            if num == dp[correct_len-1][incorrect_len-1]:
+                correct_al.append(correct[correct_len-1] +" " + "({ " + str(count) + " })")
+                incorrect_al.append(incorrect[incorrect_len-1])
+                count -= 1
+                correct_len -= 1
+                incorrect_len -= 1
+            elif num == dp[correct_len][incorrect_len-1]:
+                incorrect_al.append(incorrect[incorrect_len-1])
+                incorrect_len -= 1
+            elif num == dp[correct_len-1][incorrect_len]:
+                correct_al.append(correct[correct_len-1] + " " + "({ " + str(count) + " })")
+                count -= 1
+                correct_len -= 1
+        count_null = " ".join(count_null[::-1]) + " "
+        if len(count_null) > 1:
+            correct_al.append("NULL ({ " + str(count_null) + "})")
+        else:
+            correct_al.append("NULL ({ })")
 
-		if len(str2) < len(b):
-			str1=[]
-			str2=[]
-			i=len(a)
-			j=len(b)
-			count = max(i,j)
-			for m in xrange(1, max(i,j)+8):
-				#dp=levenshtein_distance(a,b)
-				num=min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1])
-				if num == dp[i-1][j-1]:
-					if (i == 0) and (j == 0):break
-					if count > 0:
-						str1.append(a[i-1]+" "+"({ "+str(count)+" })")
-						count -= 1
-					str2.append(b[j-1])
-					i -= 1
-					j -= 1
-				elif num == dp[i][j-1]:
-					if j==0:break
-					if count > 0:
-						count_null.append(str(count))
-						count -= 1
-					str2.append(b[j-1])
-					j -=1 
-				elif num == dp[i-1][j]:
-					if i != 0:
-						if count == count:
-							str1.append(a[i-1]+" "+"({ })")
-						else:
-							str1.append(a[i-1]+" "+"({ "+str(count)+" })")
-							count -=1
-						i -= 1
-					elif i == 0:
-						continue
+    elif correct_len < incorrect_len:
+        count = max(correct_len, incorrect_len)
+        for m in xrange(1, max(correct_len, incorrect_len) + 8):
+            num = min(dp[correct_len-1][incorrect_len], dp[correct_len][incorrect_len-1], dp[correct_len-1][incorrect_len-1])
+            if num == dp[correct_len-1][incorrect_len-1]:
+                if correct_len == 0 or incorrect_len == 0: break
+                try:
+                    if correct_len != 0:
+                        correct_al.append(correct[correct_len-1] + " " + "({ " + str(count) + " })")
+                        incorrect_al.append(incorrect[incorrect_len-1])
+                        count -= 1
+                        correct_len -= 1
+                        incorrect_len -= 1
+                    elif correct_len == 0:
+                        incorrect_al.append(incorrect[incorrect_len-1])
+                        incorrect_len -= 1
+                except:
+                    pass
+            elif num == dp[correct_len][incorrect_len-1]:
+                if incorrect_len == 0:break
+                if count > 0:count_null.append(str(count))
+                count -= 1
+                if incorrect_len > 0:incorrect_al.append(incorrect[incorrect_len-1])
+                incorrect_len -= 1
+            elif num == dp[correct_len-1][incorrect_len]:
+                if correct_len != 0:
+                    try:
+                        correct_al.append(correct[correct_len-1] + " " + "({ })")
+                    except:
+                        correct_al.append(correct[correct_len-1] + " " + "({ " + str(count) + " })")
+                        count -= 1
+                    correct_len -= 1
+                elif correct_len == 0:
+                    if count > 0:count_null.append(str(count))
+                    count -= 1
+                    if incorrect_len > 0:incorrect_al.append(incorrect[incorrect_len-1])
+                    incorrect_len -= 1
+	
+        count_null = " ".join(count_null[::-1])+" "
+        if len(count_null) > 1 :
+            correct_al.append("NULL ({ " + str(count_null) + "})")
+        else:
+            correct_al.append("NULL ({ })")
 
-		count_null = " ".join(count_null[::-1])+" "
-		if len(count_null) > 1 :
-			str1.append("NULL ({ "+str(count_null)+"})")
-		else:
-			str1.append("NULL ({ })")
+    elif correct_len > incorrect_len:
+        count = min(correct_len, incorrect_len)
+        for m in xrange(1,max(correct_len, incorrect_len) + 8):
+            num = min(dp[correct_len-1][incorrect_len],dp[correct_len][incorrect_len-1],dp[correct_len-1][incorrect_len-1])
+            if correct_len == 0:break
+            if num == dp[correct_len-1][incorrect_len-1]:
+                try:
+                    if incorrect_len != 0:
+                        correct_al.append(correct[correct_len-1]+ " " + "({ " + str(count) + " })")
+                        incorrect_al.append(incorrect[incorrect_len-1])
+                        count -= 1
+                        correct_len -= 1
+                        incorrect_len -= 1
+                    elif incorrect_len == 0:
+                        correct_al.append(correct[correct_len-1] + " " + "({ })")
+                        correct_len -= 1
+                except:
+                    pass
+            elif num == dp[correct_len][incorrect_len-1]:
+                if incorrect_len != 0:
+                    if count > 0:count_null.append(str(count))
+                    count -= 1
+                    incorrect_len.append(incorrect_al[incorrect_len-1])
+                    incorrect_len -= 1
+                elif incorrect_len == 0:
+                    try:
+                        correct_al.append(correct[correct_len-1] + " " + "({ " + str(count) + " })")
+                    except:
+                        correct_al.append(correct[correct_len-1] + " " + "({ })")
+                    correct_len -= 1
+            elif num == dp[correct_len-1][incorrect_len]:
+                correct_al.append(correct[correct_al-1] + " " + "({ })")
+                correct_len -= 1
 
-	elif i < j:
-		count = max(i,j)
-		count_null=[]
-		for m in xrange(1, max(i,j)+8):
-			#dp = levenshtein_distance(a,b)
-			num = min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])
-			if num == dp[i-1][j-1]:
-				if (i == 0) or (j == 0):break
-				try:
-					if i != 0:
-						str1.append(a[i-1]+" "+"({ "+str(count)+" })")
-						str2.append(b[j-1])
-						count -= 1
-						i -= 1
-						j -= 1
-					elif i ==0:
-						print "err",a
-						str2.append(b[j-1])
-						j -= 1
-				except:
-					print "err"
-			elif num == dp[i][j-1]:
-				if j==0:break
-				if count > 0:count_null.append(str(count))
-				count -= 1
-				if j >0:str2.append(b[j-1])
-				j -= 1
-			elif num == dp[i-1][j]:
-				if i != 0:
-					if count == count:
-						str1.append(a[i-1]+" "+"({ })")
-					else:
-						str1.append(a[i-1]+" "+"({ "+str(count)+" })")
-						count -=1
-					i -= 1
-				elif i == 0:
-					if count > 0:count_null.append(str(count))
-					count -=1
-					if j > 0:str2.append(b[j-1])
-					j-=1
+        count_null = " ".join(count_null[::-1])+" "
+        if len(count_null) > 1 :
+            correct_al.append("NULL ({ " + str(count_null) + "})")
+        else:
+            correct_al.append("NULL ({ })")
 
-		if len(str2) < len(b):
-			str1=[]
-			str2=[]
-			i = len(a)
-			j = len(b)
-			count = max(i,j)
-			count_null=[]
-			for m in xrange(1, max(i,j)+8):
-				#dp = levenshtein_distance(a,b)
-				num = min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])
-				if j==0:break
-				if num == dp[i-1][j-1]:
-					try:
-						if i != 0:
-							str1.append(a[i-1]+" "+"({ "+str(count)+" })")
-							str2.append(b[j-1])
-							count -= 1
-							i -= 1
-							j -= 1
-						elif i ==0:
-						    str2.append(b[j-1])
-						    j -= 1
-					except:
-						print "err"
-				elif num == dp[i][j-1]:
-					if count > 0:count_null.append(str(count))
-					count -= 1
-					str2.append(b[j-1])
-					j -= 1
-				elif num == dp[i-1][j]:
-					if i != 0:
-						if count == count:
-							str1.append(a[i-1]+" "+"({ })")
-						else:
-							str1.append(a[i-1]+" "+"({ "+str(count)+" })")
-							count -=1
-						i -= 1
-					elif i == 0:
-						continue
+    correct_al.reverse()
+    incorrect_al.reverse()
+    return "#comment" + "\n" + " ".join(incorrect_al) + "\n" + " ".join(correct_al) + "\n"
 
-		count_null = " ".join(count_null[::-1])+" "
-		if len(count_null) > 1 :
-			str1.append("NULL ({ "+str(count_null)+"})")
-		else:
-			str1.append("NULL ({ })")
+def main(corr, incor, align):
+    correct = open(corr, "r").readlines()
+    incorrect = open(incor, "r").readlines()
+    writeAlign = open(align,"w")
+    for i in xrange(0, len(correct)):
+        correct[i] = correct[i].rstrip()
+        incorrect[i] = incorrect[i].rstrip()
+        writeAlign.write(alignment(correct[i],incorrect[i]))
+    correct.close()
+    incorrect.close()
+    writeAlign.close()
 
 
-	elif i > j:
-		count = min(i,j)
-		count_null = []
-		for m in xrange(1,max(i,j)+8):
-			#dp = levenshtein_distance(a,b)
-			num = min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1])
-			if i== 0:break
-			if num == dp[i-1][j-1]:
-				try:
-					if j != 0:
-						str1.append(a[i-1]+" "+"({ "+str(count)+" })")
-						str2.append(b[j-1])
-						count -= 1
-						i -= 1
-						j -= 1
-					elif j == 0:
-						str1.append(a[i-1]+" "+"({ })")
-						i -= 1
-				except:
-					print "err"
-			elif num == dp[i][j-1]:
-				if j != 0:
-					if count > 0:count_null.append(str(count))
-					count -= 1
-					str2.append(b[j-1])
-					j -= 1
-				elif j == 0:
-					if count != count:
-						str1.append(a[i-1]+" "+"({ "+str(count)+" })")
-					else:
-						str1.append(a[i-1]+" "+"({ })")
-					i-=1
-			elif num == dp[i-1][j]:
-				str1.append(a[i-1]+" "+"({ })")
-				i -= 1
-
-
-
-		if len(str2) < len(b):
-			str1=[]
-			str2=[]
-			i = len(a)
-			j = len(b)
-			count = min(i,j)
-			count_null = []
-			for m in xrange(1,max(i,j)+8):
-				#dp = levenshtein_distance(a,b)
-				num = min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1])
-				if j== 0:break
-				if num == dp[i-1][j-1]:
-					try:
-						if j != 0:
-							str1.append(a[i-1]+" "+"({ "+str(count)+" })")
-							str2.append(b[j-1])
-							count -= 1
-							i -= 1
-							j -= 1
-						elif j == 0:
-							str1.append(a[i-1]+" "+"({ })")
-							i -= 1
-					except:
-						print "err"
-				elif num == dp[i][j-1]:
-					if j != 0:
-						if count > 0:count_null.append(str(count))
-						count -= 1
-						str2.append(b[j-1])
-						j -= 1
-					elif j == 0:
-						if count > 0:count_null.append(str(count))
-						count -= 1
-				elif num == dp[i-1][j]:
-					str1.append(a[i-1]+" "+"({ })")
-					i -= 1
-
-		count_null = " ".join(count_null[::-1])+" "
-		if len(count_null) > 1 :
-			str1.append("NULL ({ "+str(count_null)+"})")
-		else:
-			str1.append("NULL ({ })")
-
-	str1.reverse()
-	str2.reverse()
-	return "#comment"+"\n"\
-        +" ".join(str2)+"\n"\
-        +" ".join(str1)+"\n"
-
-def file_input(a,b,c):
-	f = open(a, "r")
-	j = open(b, "r")
-	k = open(c,"w")
-	m = f.readlines()
-	n = j.readlines()
-	for i in xrange(0, len(m)):
-		m[i] = m[i].rstrip()
-		n[i] = n[i].rstrip()
-	   	k.write(output(m[i],n[i]))
-	f.close()
-	j.close()
-	k.close()
-
-
-file_input("correct.txt","learner.txt","output4.txt")
-#file_input("learner.txt","correct.txt","output3.txt")
-#file_input("corpus/train.incor","corpus/train.corr","alignment/corr-incor.align")
-#file_input("corpus/train.corr","corpus/train.incor","alignment/incor-corr.align")
+main(args.corr, args.incor, args.align)
